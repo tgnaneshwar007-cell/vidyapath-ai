@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile, EducationLevel, Language } from '@/types';
 import { ScholarshipRepository } from '@/services/scholarshipRepository';
 import { useTranslation } from '@/locales/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -14,19 +15,39 @@ import {
 
 export const ProfilePage: React.FC = () => {
   const { t, language, setLanguage } = useTranslation();
+  const { user, profile: authProfile, refreshProfile } = useAuth();
   const availableStates = ScholarshipRepository.getAvailableStates();
 
-  const [profile, setProfile] = useState<UserProfile>(() => ScholarshipRepository.getUserProfile());
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    const local = ScholarshipRepository.getUserProfile();
+    if (authProfile) {
+      return { ...local, ...authProfile };
+    }
+    return local;
+  });
+
+  useEffect(() => {
+    if (authProfile) {
+      setProfile((prev) => ({
+        ...prev,
+        ...authProfile,
+        email: user?.email || authProfile.email || prev.email,
+        full_name: authProfile.full_name || prev.full_name,
+      }));
+    }
+  }, [authProfile, user]);
+
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const updated = ScholarshipRepository.saveUserProfile(profile);
     setProfile(updated);
     if (profile.preferred_language !== language) {
       setLanguage(profile.preferred_language);
     }
+    await refreshProfile();
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/locales/LanguageContext';
 import { VERIFIED_SCHOLARSHIPS } from '@/data/verifiedScholarships';
+import { ScholarshipRepository } from '@/services/scholarshipRepository';
 import { ScholarshipCard } from '@/components/scholarships/ScholarshipCard';
 import { Button } from '@/components/ui/button';
+import { Scholarship } from '@/types';
 import { 
   Search, 
   ArrowRight, 
@@ -15,6 +17,19 @@ export const LandingPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [quickQuery, setQuickQuery] = useState('');
+  const [previewScholarships, setPreviewScholarships] = useState<Scholarship[]>(VERIFIED_SCHOLARSHIPS.slice(0, 3));
+
+  useEffect(() => {
+    ScholarshipRepository.getScholarshipsList({ pageSize: 3 })
+      .then((data) => {
+        if (data && data.length > 0) {
+          setPreviewScholarships(data.slice(0, 3));
+        }
+      })
+      .catch((err) => {
+        console.warn('Fallback to local scholarships on landing page:', err);
+      });
+  }, []);
 
   const handleQuickSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +39,6 @@ export const LandingPage: React.FC = () => {
       navigate('/scholarships');
     }
   };
-
-  const previewScholarships = VERIFIED_SCHOLARSHIPS.slice(0, 3);
 
   return (
     <div className="flex flex-col space-y-16 md:space-y-24 pb-20 overflow-x-hidden">

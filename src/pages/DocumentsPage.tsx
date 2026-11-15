@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { VERIFIED_SCHOLARSHIPS } from '@/data/verifiedScholarships';
+import { ScholarshipRepository } from '@/services/scholarshipRepository';
 import { useTranslation } from '@/locales/LanguageContext';
+import { Scholarship } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -14,10 +16,26 @@ import {
 
 export const DocumentsPage: React.FC = () => {
   const { language } = useTranslation();
+  const [schemes, setSchemes] = useState<Scholarship[]>(VERIFIED_SCHOLARSHIPS);
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>(VERIFIED_SCHOLARSHIPS[0].id);
   const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
 
-  const selectedScheme = VERIFIED_SCHOLARSHIPS.find((s) => s.id === selectedSchemeId) || VERIFIED_SCHOLARSHIPS[0];
+  useEffect(() => {
+    ScholarshipRepository.getScholarshipsList({ pageSize: 50 })
+      .then((data) => {
+        if (data && data.length > 0) {
+          setSchemes(data);
+          if (!data.some((s) => s.id === selectedSchemeId)) {
+            setSelectedSchemeId(data[0].id);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('DocumentsPage: using local scholarships fallback', err);
+      });
+  }, []);
+
+  const selectedScheme = schemes.find((s) => s.id === selectedSchemeId) || schemes[0] || VERIFIED_SCHOLARSHIPS[0];
 
   const handleToggleDoc = (docId: string) => {
     setCheckedMap((prev) => ({
@@ -52,7 +70,7 @@ export const DocumentsPage: React.FC = () => {
           Select Scholarship Scheme:
         </label>
         <div className="flex flex-wrap gap-2">
-          {VERIFIED_SCHOLARSHIPS.map((scheme) => (
+          {schemes.map((scheme) => (
             <button
               key={scheme.id}
               onClick={() => setSelectedSchemeId(scheme.id)}

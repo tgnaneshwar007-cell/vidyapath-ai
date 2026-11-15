@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from '@/locales/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Language } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Globe, Menu, X, ArrowUpRight } from 'lucide-react';
+import { Globe, Menu, X, ArrowUpRight, User, LogOut, ShieldAlert } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { language, setLanguage, t } = useTranslation();
+  const { user, profile, isAdmin, signOut, openAuthModal } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -72,6 +75,19 @@ export const Header: React.FC = () => {
               )}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={`tap-60fps px-2.5 py-1 rounded-md text-xs font-mono font-semibold transition-colors flex items-center gap-1.5 ${
+                isActive('/admin')
+                  ? 'bg-brand-black text-white'
+                  : 'bg-brand-black/5 text-brand-black hover:bg-brand-black hover:text-white'
+              }`}
+            >
+              <ShieldAlert className="h-3 w-3 text-brand-orange" />
+              Admin
+            </Link>
+          )}
         </nav>
 
         {/* Right Action Bar */}
@@ -115,6 +131,100 @@ export const Header: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* User Auth or Sign In Button */}
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="tap-60fps flex items-center gap-2 rounded-lg border border-brand-border/80 bg-brand-surface px-2.5 py-1.5 text-xs font-medium text-brand-black hover:bg-brand-storm-subtle"
+              >
+                <div className="h-6 w-6 rounded-full bg-brand-black text-white flex items-center justify-center font-bold text-[10px]">
+                  {(profile?.full_name || user.email || 'S')[0].toUpperCase()}
+                </div>
+                <span className="max-w-[100px] truncate">
+                  {profile?.full_name || user.email?.split('@')[0]}
+                </span>
+                {isAdmin && (
+                  <span className="text-[9px] bg-brand-black text-brand-orange px-1 py-0.5 rounded font-mono font-semibold">
+                    ADMIN
+                  </span>
+                )}
+              </button>
+
+              {userMenuOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-52 rounded-xl border border-brand-border bg-brand-surface p-1.5 shadow-elevated z-50 animate-in fade-in-50 zoom-in-95"
+                  onMouseLeave={() => setUserMenuOpen(false)}
+                >
+                  <div className="px-2.5 py-2 border-b border-brand-border/60 mb-1">
+                    <p className="text-xs font-semibold text-brand-black truncate">
+                      {profile?.full_name || 'Student Candidate'}
+                    </p>
+                    <p className="text-[11px] text-brand-mutedText truncate font-mono">{user.email}</p>
+                  </div>
+
+                  <Link
+                    to="/profile"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-xs rounded-md text-brand-black hover:bg-brand-storm-subtle"
+                  >
+                    <User className="h-3.5 w-3.5 text-brand-storm" />
+                    <span>Student Profile</span>
+                  </Link>
+
+                  <Link
+                    to="/saved"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-xs rounded-md text-brand-black hover:bg-brand-storm-subtle"
+                  >
+                    <span>Saved Scholarships</span>
+                  </Link>
+
+                  <Link
+                    to="/applications"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-xs rounded-md text-brand-black hover:bg-brand-storm-subtle"
+                  >
+                    <span>My Applications</span>
+                  </Link>
+
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex w-full items-center gap-2 px-2.5 py-1.5 text-xs rounded-md text-brand-black hover:bg-brand-storm-subtle font-semibold"
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5 text-brand-orange" />
+                      <span>Admin Dashboard</span>
+                    </Link>
+                  )}
+
+                  <div className="pt-1 mt-1 border-t border-brand-border/60">
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        signOut();
+                      }}
+                      className="flex w-full items-center gap-2 px-2.5 py-1.5 text-xs rounded-md text-brand-danger hover:bg-red-50"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openAuthModal('signin')}
+              className="tap-60fps text-xs h-8 border-brand-border hover:bg-brand-storm-subtle"
+            >
+              Sign In
+            </Button>
+          )}
 
           {/* Primary CTA */}
           <Button asChild variant="primary" size="sm" className="tap-60fps shadow-subtle">
@@ -168,7 +278,52 @@ export const Header: React.FC = () => {
                 {link.name}
               </Link>
             ))}
+
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="tap-60fps rounded-md px-3 py-2 text-sm font-semibold text-brand-black bg-brand-storm-subtle flex items-center gap-2"
+              >
+                <ShieldAlert className="h-4 w-4 text-brand-orange" />
+                Admin Dashboard
+              </Link>
+            )}
+
             <div className="pt-3 border-t border-brand-border flex flex-col gap-2">
+              {user ? (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-brand-warmWhite">
+                  <div>
+                    <p className="text-xs font-semibold text-brand-black">
+                      {profile?.full_name || user.email}
+                    </p>
+                    <p className="text-[10px] text-brand-mutedText">{user.email}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
+                    className="text-brand-danger text-xs h-7"
+                  >
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    openAuthModal('signin');
+                  }}
+                  className="w-full text-xs h-9"
+                >
+                  Sign In
+                </Button>
+              )}
+
               <Button asChild variant="primary" className="w-full tap-60fps">
                 <Link to="/scholarships" onClick={() => setMobileMenuOpen(false)}>
                   {t.common.checkEligibility}

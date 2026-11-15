@@ -34,15 +34,23 @@ const LOCAL_STORAGE_SAVED_KEY = 'vidyapath_saved_scholarships';
 const LOCAL_STORAGE_APPS_KEY = 'vidyapath_applications';
 const LOCAL_STORAGE_PROFILE_KEY = 'vidyapath_user_profile';
 
+function withTimeout<T>(promise: Promise<T>, ms = 1500): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Supabase request timed out')), ms)),
+  ]);
+}
+
 export class ScholarshipRepository {
   /**
    * Query scholarships with live Supabase database support & verified fallback
    */
   static async getScholarships(filters: ScholarshipFilters = {}): Promise<PaginatedScholarships> {
     let dataset: Scholarship[] = [];
+    const isTestEnv = import.meta.env.MODE === 'test';
 
-    // Attempt live Supabase query if configured
-    if (isSupabaseConfigured && supabase) {
+    // Attempt live Supabase query if configured and not in isolated test mode
+    if (!isTestEnv && isSupabaseConfigured && supabase) {
       try {
         let query = supabase.from('scholarships').select('*', { count: 'exact' });
 
@@ -50,14 +58,14 @@ export class ScholarshipRepository {
           query = query.eq('scheme_type', filters.schemeType);
         }
 
-        const { data, error } = await query;
+        const { data, error } = await withTimeout(Promise.resolve(query), 1500);
         if (!error && data && data.length > 0) {
           dataset = data as Scholarship[];
         } else {
           dataset = [...VERIFIED_SCHOLARSHIPS];
         }
       } catch (err) {
-        console.warn('Supabase fetch failed, utilizing verified dataset:', err);
+        console.warn('Supabase fetch failed or timed out, utilizing verified dataset:', err);
         dataset = [...VERIFIED_SCHOLARSHIPS];
       }
     } else {
@@ -169,13 +177,15 @@ export class ScholarshipRepository {
   }
 
   static async getScholarshipBySlug(slug: string): Promise<Scholarship | null> {
-    if (isSupabaseConfigured && supabase) {
+    const isTestEnv = import.meta.env.MODE === 'test';
+    if (!isTestEnv && isSupabaseConfigured && supabase) {
       try {
-        const { data, error } = await supabase
+        const query = supabase
           .from('scholarships')
           .select('*, sources:scholarship_sources(*)')
           .or(`slug.eq.${slug},id.eq.${slug}`)
           .single();
+        const { data, error } = await withTimeout(Promise.resolve(query), 1500);
         if (!error && data) return data as Scholarship;
       } catch (err) {
         console.warn('Supabase slug fetch fallback:', err);
@@ -257,8 +267,34 @@ export class ScholarshipRepository {
   }
 
   static async getSavedScholarships(): Promise<Scholarship[]> {
-    const ids = this.getSavedScholarshipIds();
-    return VERIFIED_SCHOLARSHIPS.filter((s) => ids.includes(s.id));
+    let ids = this.getSavedScholarshipIds();
+    const isTestEnv = import.meta.env.MODE === 'test';
+    if (!isTestEnv && isSupabaseConfigured && supabase) {
+      try {
+        const { data: { user } } = await withTimeout(supabase.auth.getUser(), 1500);
+        if (user) {
+          const query = supabase
+            .from('saved_scholarships')
+            .select('scholarship_id')
+            .eq('user_id', user.id);
+          const { data, error } = await withTimeout(Promise.resolve(query), 1500);
+          if (!error && data && data.length > 0) {
+            const dbIds = data.map((d: any) => d.scholarship_id);
+            ids = Array.from(new Set([...ids, ...dbIds]));
+            localStorage.setItem(LOCAL_STORAGE_SAVED_KEY, JSON.stringify(ids));
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching saved scholarships from Supabase:', err);
+      }
+    }
+    const all = await this.getScholarships({ pageSize: 100 });
+    return all.data.filter((s) => ids.includes(s.id));
+  }
+
+  static async getScholarshipsList(filters: ScholarshipFilters = {}): Promise<Scholarship[]> {
+    const res = await this.getScholarships(filters);
+    return res.data;
   }
 
   static getTrackedApplications(): TrackedApplication[] {
@@ -327,6 +363,19 @@ export class ScholarshipRepository {
       if (notes !== undefined) apps[idx].notes = notes;
       apps[idx].updated_at = new Date().toISOString();
       localStorage.setItem(LOCAL_STORAGE_APPS_KEY, JSON.stringify(apps));
+
+      if (isSupabaseConfigured && supabase) {
+        const client = supabase;
+        client.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            client.from('applications').update({
+              stage,
+              notes: notes || apps[idx].notes,
+              updated_at: new Date().toISOString(),
+            }).match({ user_id: user.id, scholarship_id: apps[idx].scholarship_id }).then();
+          }
+        });
+      }
     }
   }
 
@@ -344,8 +393,19 @@ export class ScholarshipRepository {
   }
 
   static removeTrackedApplication(appId: string): void {
-    const apps = this.getTrackedApplications().filter((a) => a.id !== appId);
-    localStorage.setItem(LOCAL_STORAGE_APPS_KEY, JSON.stringify(apps));
+    const apps = this.getTrackedApplications();
+    const target = apps.find((a) => a.id === appId);
+    const updated = apps.filter((a) => a.id !== appId);
+    localStorage.setItem(LOCAL_STORAGE_APPS_KEY, JSON.stringify(updated));
+
+    if (target && isSupabaseConfigured && supabase) {
+      const client = supabase;
+      client.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          client.from('applications').delete().match({ user_id: user.id, scholarship_id: target.scholarship_id }).then();
+        }
+      });
+    }
   }
 
   static getUserProfile(): UserProfile {

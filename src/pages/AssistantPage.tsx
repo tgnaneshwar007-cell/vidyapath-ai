@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AIChatMessage } from '@/types';
+import { AIChatMessage, Scholarship } from '@/types';
 import { AIAssistantService } from '@/services/aiAssistantService';
+import { ScholarshipRepository } from '@/services/scholarshipRepository';
 import { useTranslation } from '@/locales/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/services/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { 
   Send, 
@@ -15,6 +18,22 @@ import {
 
 export const AssistantPage: React.FC = () => {
   const { language, t } = useTranslation();
+  const { user } = useAuth();
+  const [schemes, setSchemes] = useState<Scholarship[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    ScholarshipRepository.getScholarshipsList({ pageSize: 50 })
+      .then((data) => {
+        if (data && data.length > 0) {
+          setSchemes(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('AssistantPage: failed to fetch live scholarships:', err);
+      });
+  }, []);
+
   const [messages, setMessages] = useState<AIChatMessage[]>([
     {
       id: 'welcome_msg',
@@ -58,7 +77,7 @@ export const AssistantPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await AIAssistantService.askAssistant(q, messages, language);
+      const response = await AIAssistantService.askAssistant(q, messages, language, schemes);
 
       const botMessage: AIChatMessage = {
         id: `msg_bot_${Date.now()}`,
@@ -70,6 +89,49 @@ export const AssistantPage: React.FC = () => {
       };
 
       setMessages((prev) => [...prev, botMessage]);
+
+      // Asynchronously log to Supabase if client is connected
+      if (supabase) {
+        (async () => {
+          try {
+            let convId = conversationId;
+            if (!convId) {
+              const { data: conv } = await supabase
+                .from('assistant_conversations')
+                .insert({
+                  user_id: user?.id || null,
+                  title: q.slice(0, 60),
+                  language,
+                })
+                .select('id')
+                .single();
+              if (conv) {
+                convId = conv.id;
+                setConversationId(conv.id);
+              }
+            }
+            if (convId) {
+              await supabase.from('assistant_messages').insert([
+                {
+                  conversation_id: convId,
+                  role: 'user',
+                  content: q,
+                  language,
+                },
+                {
+                  conversation_id: convId,
+                  role: 'assistant',
+                  content: response.content,
+                  language: response.language,
+                  citations: response.citations || [],
+                },
+              ]);
+            }
+          } catch (dbErr) {
+            console.warn('Silent fallback: could not persist conversation to Supabase', dbErr);
+          }
+        })();
+      }
     } catch (err) {
       console.error(err);
       const errorMessage: AIChatMessage = {

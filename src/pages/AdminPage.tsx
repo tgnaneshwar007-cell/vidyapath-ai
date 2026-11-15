@@ -1,44 +1,81 @@
-import React, { useState } from 'react';
-import { VERIFIED_SCHOLARSHIPS } from '@/data/verifiedScholarships';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Scholarship, VerificationStatus } from '@/types';
-import { testSupabaseConnection, isSupabaseConfigured } from '@/services/supabaseClient';
+import { testSupabaseConnection, isSupabaseConfigured, supabase } from '@/services/supabaseClient';
+import { ScholarshipRepository } from '@/services/scholarshipRepository';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   CheckCircle, 
-  Lock,
+  ShieldAlert,
   Database,
-  RefreshCw
+  RefreshCw,
+  LogOut,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [passphrase, setPassphrase] = useState('');
-  const [authError, setAuthError] = useState('');
+  const { user, profile, isAdmin, isLoading, openAuthModal, refreshProfile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<'schemes' | 'audit' | 'supabase'>('schemes');
   
-  const [scholarshipsList, setScholarshipsList] = useState<Scholarship[]>(VERIFIED_SCHOLARSHIPS);
+  const [scholarshipsList, setScholarshipsList] = useState<Scholarship[]>([]);
+  const [loadingSchemes, setLoadingSchemes] = useState(true);
   const [updateMessage, setUpdateMessage] = useState('');
   const [supabaseTestResult, setSupabaseTestResult] = useState<{ connected: boolean; message: string } | null>(null);
   const [testingSupabase, setTestingSupabase] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passphrase === 'vidyapath-admin-2026' || passphrase === (import.meta.env.VITE_ADMIN_SECRET || 'admin')) {
-      setIsAdminAuthenticated(true);
-      setAuthError('');
-    } else {
-      setAuthError('Invalid administrative authorization credentials.');
+  useEffect(() => {
+    async function loadData() {
+      setLoadingSchemes(true);
+      try {
+        const data = await ScholarshipRepository.getScholarshipsList({ pageSize: 50 });
+        setScholarshipsList(data);
+      } catch (err) {
+        console.warn('Error loading scholarships:', err);
+      } finally {
+        setLoadingSchemes(false);
+      }
     }
-  };
+    loadData();
+  }, []);
 
-  const handleUpdateStatus = (id: string, newStatus: VerificationStatus) => {
+  const handleUpdateStatus = async (id: string, newStatus: VerificationStatus) => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Optimistic UI update
     setScholarshipsList((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, verification_status: newStatus, last_verified_at: new Date().toISOString().split('T')[0] } : s))
+      prev.map((s) => (s.id === id ? { ...s, verification_status: newStatus, last_verified_at: today } : s))
     );
+
+    // If Supabase is connected and user is admin, sync to database
+    if (supabase && user && isAdmin) {
+      try {
+        await supabase
+          .from('scholarships')
+          .update({ 
+            verification_status: newStatus, 
+            last_verified_at: new Date().toISOString() 
+          })
+          .eq('id', id);
+
+        await supabase
+          .from('admin_audit_logs')
+          .insert({
+            admin_id: user.id,
+            action: 'UPDATE_VERIFICATION_STATUS',
+            target_type: 'scholarship',
+            target_id: id,
+            details: { new_status: newStatus, date: today },
+          });
+      } catch (err) {
+        console.warn('Failed to sync status update to Supabase:', err);
+      }
+    }
+
     setUpdateMessage(`Verification status updated to "${newStatus}" and audit timestamp refreshed.`);
-    setTimeout(() => setUpdateMessage(''), 3000);
+    setTimeout(() => setUpdateMessage(''), 3500);
   };
 
   const handleTestSupabase = async () => {
@@ -48,55 +85,124 @@ export const AdminPage: React.FC = () => {
     setTestingSupabase(false);
   };
 
-  if (!isAdminAuthenticated) {
+  const copySqlToClipboard = (sql: string) => {
+    navigator.clipboard.writeText(sql);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 2000);
+  };
+
+  // State 1: Loading authentication status
+  if (isLoading) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16">
-        <div className="glass-box rounded-2xl p-6 sm:p-8 shadow-card text-center space-y-4">
+      <div className="mx-auto max-w-md px-4 py-24 text-center space-y-4">
+        <RefreshCw className="h-8 w-8 text-brand-orange animate-spin mx-auto" />
+        <p className="text-sm text-brand-mutedText font-mono">Verifying administrative authorization...</p>
+      </div>
+    );
+  }
+
+  // State 2: Not logged in
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 sm:py-24">
+        <div className="glass-box rounded-2xl p-6 sm:p-8 shadow-card text-center space-y-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-black text-brand-orange mx-auto shadow-subtle">
-            <Lock className="h-6 w-6" />
+            <ShieldAlert className="h-6 w-6" />
           </div>
 
           <h1 className="text-xl font-bold text-brand-black font-display tracking-tight">
-            Admin Authorization
+            Administrator Access Required
           </h1>
 
-          <p className="text-xs text-brand-mutedText">
-            Enter administrative passkey to access scheme verification records, audit logs, and Supabase database controls.
+          <p className="text-xs text-brand-mutedText leading-relaxed">
+            The VidyaPath AI Admin Console is restricted to authorized scheme auditors and administrators. Authentication is enforced through Supabase Row Level Security.
           </p>
 
-          {authError && (
-            <div className="rounded-lg bg-red-50 p-2.5 text-xs text-brand-danger font-medium border border-red-200">
-              {authError}
-            </div>
-          )}
-
-          <form onSubmit={handleAdminLogin} className="space-y-4 text-left">
-            <div>
-              <label className="block text-xs font-semibold uppercase font-mono text-brand-storm-dark mb-1">
-                Admin Passkey
-              </label>
-              <Input
-                type="password"
-                required
-                value={passphrase}
-                onChange={(e) => setPassphrase(e.target.value)}
-                placeholder="Enter passkey (e.g. vidyapath-admin-2026)"
-              />
-            </div>
-
-            <Button type="submit" variant="primary" className="w-full tap-60fps">
-              Authenticate as Administrator
-            </Button>
-          </form>
+          <Button 
+            onClick={() => openAuthModal('signin')} 
+            variant="primary" 
+            className="w-full tap-60fps font-semibold"
+          >
+            Sign In with Administrator Account
+          </Button>
 
           <p className="text-[11px] text-brand-mutedText pt-2">
-            Tip for development: Use <code className="bg-brand-storm-subtle px-1.5 py-0.5 rounded font-mono text-brand-black">vidyapath-admin-2026</code>
+            Tip: You can create an account using the New Student tab and then grant it admin privileges in your Supabase SQL Editor.
           </p>
         </div>
       </div>
     );
   }
 
+  // State 3: Logged in but not admin
+  if (!isAdmin) {
+    const promoteSql = `UPDATE public.profiles\nSET is_admin = TRUE\nWHERE email = '${user.email}';`;
+
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 space-y-6">
+        <div className="glass-box rounded-2xl p-6 sm:p-8 shadow-card space-y-5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700 mx-auto shadow-subtle">
+            <ShieldAlert className="h-6 w-6" />
+          </div>
+
+          <div className="text-center space-y-1">
+            <h1 className="text-xl font-bold text-brand-black font-display tracking-tight">
+              Access Restricted
+            </h1>
+            <p className="text-xs text-brand-mutedText">
+              Signed in as <span className="font-semibold text-brand-black font-mono">{user.email}</span>
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed">
+            Your user account is registered, but the database profile flag <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-semibold">is_admin</code> is currently <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-semibold">FALSE</code>.
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-brand-black uppercase font-mono tracking-wider">
+                To Grant Admin Rights in Supabase:
+              </span>
+              <button
+                onClick={() => copySqlToClipboard(promoteSql)}
+                className="flex items-center gap-1 text-[11px] font-mono text-brand-storm hover:text-brand-black"
+              >
+                {copiedSql ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copiedSql ? 'Copied' : 'Copy SQL'}</span>
+              </button>
+            </div>
+            <pre className="p-3 bg-brand-black text-brand-warmWhite rounded-lg text-xs font-mono overflow-x-auto">
+              {promoteSql}
+            </pre>
+            <p className="text-[11px] text-brand-mutedText">
+              Paste this query in your Supabase SQL Editor and click Run, then click the button below.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => refreshProfile()}
+              variant="primary"
+              className="flex-1 tap-60fps flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh Profile Permissions</span>
+            </Button>
+            <Button
+              onClick={() => signOut()}
+              variant="outline"
+              className="tap-60fps text-brand-danger hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sign Out</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // State 4: Authenticated Administrator
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-8">
       {/* Admin Header */}
@@ -104,7 +210,9 @@ export const AdminPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <Badge variant="verified">Admin Console</Badge>
-            <span className="text-xs text-brand-mutedText font-mono">Role: Verified Scheme Auditor</span>
+            <span className="text-xs text-brand-mutedText font-mono">
+              Signed in: <span className="font-semibold text-brand-black">{profile?.full_name || user.email}</span> (is_admin: true)
+            </span>
           </div>
           <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-brand-black font-display tracking-tight">
             Verification & Database Operations
@@ -115,10 +223,11 @@ export const AdminPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsAdminAuthenticated(false)}
-            className="tap-60fps"
+            onClick={() => signOut()}
+            className="tap-60fps text-xs"
           >
-            Lock Session
+            <LogOut className="h-3.5 w-3.5 mr-1.5" />
+            Sign Out
           </Button>
         </div>
       </div>
@@ -134,19 +243,31 @@ export const AdminPage: React.FC = () => {
       <div className="flex border-b border-brand-border space-x-4 text-sm font-medium">
         <button
           onClick={() => setActiveTab('schemes')}
-          className={`pb-3 px-1 border-b-2 transition-colors ${activeTab === 'schemes' ? 'border-brand-orange text-brand-black font-bold' : 'border-transparent text-brand-mutedText hover:text-brand-black'}`}
+          className={`pb-3 px-1 border-b-2 transition-colors ${
+            activeTab === 'schemes'
+              ? 'border-brand-orange text-brand-black font-bold'
+              : 'border-transparent text-brand-mutedText hover:text-brand-black'
+          }`}
         >
           Scheme Directory ({scholarshipsList.length})
         </button>
         <button
           onClick={() => setActiveTab('supabase')}
-          className={`pb-3 px-1 border-b-2 transition-colors ${activeTab === 'supabase' ? 'border-brand-orange text-brand-black font-bold' : 'border-transparent text-brand-mutedText hover:text-brand-black'}`}
+          className={`pb-3 px-1 border-b-2 transition-colors ${
+            activeTab === 'supabase'
+              ? 'border-brand-orange text-brand-black font-bold'
+              : 'border-transparent text-brand-mutedText hover:text-brand-black'
+          }`}
         >
           Live Supabase Status
         </button>
         <button
           onClick={() => setActiveTab('audit')}
-          className={`pb-3 px-1 border-b-2 transition-colors ${activeTab === 'audit' ? 'border-brand-orange text-brand-black font-bold' : 'border-transparent text-brand-mutedText hover:text-brand-black'}`}
+          className={`pb-3 px-1 border-b-2 transition-colors ${
+            activeTab === 'audit'
+              ? 'border-brand-orange text-brand-black font-bold'
+              : 'border-transparent text-brand-mutedText hover:text-brand-black'
+          }`}
         >
           Audit Logs
         </button>
@@ -164,60 +285,67 @@ export const AdminPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-brand-storm-subtle/50 text-brand-mutedText font-mono uppercase border-b border-brand-border">
-                <tr>
-                  <th className="px-4 py-3">Scheme Title</th>
-                  <th className="px-4 py-3">Provider</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Last Verified</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-border/60 text-brand-black">
-                {scholarshipsList.map((s) => (
-                  <tr key={s.id} className="hover:bg-brand-storm-subtle/20 transition-colors">
-                    <td className="px-4 py-3 font-semibold max-w-xs truncate">
-                      {s.title.en}
-                    </td>
-                    <td className="px-4 py-3 text-brand-storm-dark max-w-[200px] truncate">
-                      {s.provider.en}
-                    </td>
-                    <td className="px-4 py-3 capitalize">
-                      {s.scheme_type}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={s.verification_status === 'verified' ? 'verified' : 'warning'}>
-                        {s.verification_status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-brand-mutedText">
-                      {s.last_verified_at}
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-1">
-                      {s.verification_status !== 'verified' ? (
-                        <button
-                          onClick={() => handleUpdateStatus(s.id, 'verified')}
-                          className="px-2.5 py-1 rounded-md bg-brand-success text-white text-[11px] font-semibold tap-60fps"
-                        >
-                          Mark Verified
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleUpdateStatus(s.id, 'pending')}
-                          className="px-2.5 py-1 rounded-md border border-brand-border text-brand-storm-dark hover:bg-brand-storm-subtle text-[11px] tap-60fps"
-                        >
-                          Mark Pending
-                        </button>
-                      )}
-                    </td>
+          {loadingSchemes ? (
+            <div className="p-12 text-center text-xs text-brand-mutedText">
+              <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-brand-orange" />
+              Loading schemes...
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-brand-storm-subtle/50 text-brand-mutedText font-mono uppercase border-b border-brand-border">
+                  <tr>
+                    <th className="px-4 py-3">Scheme Title</th>
+                    <th className="px-4 py-3">Provider</th>
+                    <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Last Verified</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-brand-border/60 text-brand-black">
+                  {scholarshipsList.map((s) => (
+                    <tr key={s.id} className="hover:bg-brand-storm-subtle/20 transition-colors">
+                      <td className="px-4 py-3 font-semibold max-w-xs truncate">
+                        {s.title.en}
+                      </td>
+                      <td className="px-4 py-3 text-brand-storm-dark max-w-[200px] truncate">
+                        {s.provider.en}
+                      </td>
+                      <td className="px-4 py-3 capitalize">
+                        {s.scheme_type}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={s.verification_status === 'verified' ? 'verified' : 'warning'}>
+                          {s.verification_status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[11px] text-brand-mutedText">
+                        {s.last_verified_at}
+                      </td>
+                      <td className="px-4 py-3 text-right space-x-1">
+                        {s.verification_status !== 'verified' ? (
+                          <button
+                            onClick={() => handleUpdateStatus(s.id, 'verified')}
+                            className="px-2.5 py-1 rounded-md bg-brand-success text-white text-[11px] font-semibold tap-60fps"
+                          >
+                            Mark Verified
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleUpdateStatus(s.id, 'pending')}
+                            className="px-2.5 py-1 rounded-md border border-brand-border text-brand-storm-dark hover:bg-brand-storm-subtle text-[11px] tap-60fps"
+                          >
+                            Mark Pending
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -242,16 +370,16 @@ export const AdminPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
             <div className="p-4 rounded-xl border border-brand-border bg-brand-storm-subtle/30">
-              <span className="text-brand-mutedText block mb-1">VITE_SUPABASE_URL</span>
+              <span className="text-brand-mutedText block mb-1">SUPABASE_URL</span>
               <span className="font-semibold text-brand-black break-all">
-                {import.meta.env.VITE_SUPABASE_URL || '(Not set in .env)'}
+                {import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || '(Not configured)'}
               </span>
             </div>
 
             <div className="p-4 rounded-xl border border-brand-border bg-brand-storm-subtle/30">
-              <span className="text-brand-mutedText block mb-1">VITE_SUPABASE_ANON_KEY</span>
+              <span className="text-brand-mutedText block mb-1">PUBLISHABLE_KEY</span>
               <span className="font-semibold text-brand-black">
-                {import.meta.env.VITE_SUPABASE_ANON_KEY ? '••••••••••••••••••••' : '(Not set in .env)'}
+                {import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ? '••••••••••••••••••••' : '(Not configured)'}
               </span>
             </div>
           </div>

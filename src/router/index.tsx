@@ -54,6 +54,10 @@ export const router = createBrowserRouter([
         element: <SavedScholarshipsPage />,
       },
       {
+        path: 'saved',
+        element: <Navigate to="/saved-scholarships" replace />,
+      },
+      {
         path: 'documents',
         element: <DocumentsPage />,
       },

@@ -308,7 +308,8 @@ export class EligibilityEngine {
    */
   static evaluateAllScholarships(
     student: StudentEligibilityProfile,
-    lang: Language = 'en'
+    lang: Language = 'en',
+    scholarshipsList: Scholarship[] = VERIFIED_SCHOLARSHIPS
   ): {
     eligible: { scholarship: Scholarship; report: EligibilityEvaluationReport }[];
     potential: { scholarship: Scholarship; report: EligibilityEvaluationReport }[];
@@ -318,7 +319,9 @@ export class EligibilityEngine {
     const potential: { scholarship: Scholarship; report: EligibilityEvaluationReport }[] = [];
     const ineligible: { scholarship: Scholarship; report: EligibilityEvaluationReport }[] = [];
 
-    VERIFIED_SCHOLARSHIPS.forEach((s) => {
+    const list = scholarshipsList && scholarshipsList.length > 0 ? scholarshipsList : VERIFIED_SCHOLARSHIPS;
+
+    list.forEach((s) => {
       const report = this.evaluateScholarship(s, student, lang);
       if (report.verdict === 'appears_eligible') {
         eligible.push({ scholarship: s, report });

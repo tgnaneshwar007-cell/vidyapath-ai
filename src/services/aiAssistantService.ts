@@ -11,14 +11,18 @@ export class AIAssistantService {
   /**
    * Retrieve relevant scholarship records matching the student's query keywords
    */
-  static retrieveGroundedContext(query: string): {
+  static retrieveGroundedContext(
+    query: string, 
+    schemesList?: Scholarship[]
+  ): {
     matchedScholarships: Scholarship[];
     citations: AISourceCitation[];
   } {
+    const pool = schemesList && schemesList.length > 0 ? schemesList : VERIFIED_SCHOLARSHIPS;
     const q = query.toLowerCase().trim();
     const words = q.split(/\s+/).filter(w => w.length > 2);
 
-    const matches = VERIFIED_SCHOLARSHIPS.filter((s) => {
+    const matches = pool.filter((s) => {
       // Check titles across all languages
       const inTitle = 
         s.title.en.toLowerCase().includes(q) ||
@@ -46,7 +50,7 @@ export class AIAssistantService {
     });
 
     // If query has no specific keyword hit, return top 2 relevant schemes
-    const selected = matches.length > 0 ? matches.slice(0, 3) : VERIFIED_SCHOLARSHIPS.slice(0, 2);
+    const selected = matches.length > 0 ? matches.slice(0, 3) : pool.slice(0, 2);
 
     const citations: AISourceCitation[] = selected.map((s) => ({
       scholarship_id: s.id,
@@ -64,9 +68,10 @@ export class AIAssistantService {
   static async askAssistant(
     userQuery: string,
     _history: AIChatMessage[],
-    lang: Language = 'en'
+    lang: Language = 'en',
+    schemesList?: Scholarship[]
   ): Promise<AssistantResponse> {
-    const { matchedScholarships, citations } = this.retrieveGroundedContext(userQuery);
+    const { matchedScholarships, citations } = this.retrieveGroundedContext(userQuery, schemesList);
 
     const provider = import.meta.env.VITE_AI_PROVIDER || 'mock';
     const openrouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;

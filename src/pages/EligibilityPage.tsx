@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   StudentEligibilityProfile, 
@@ -23,6 +23,19 @@ import {
 export const EligibilityPage: React.FC = () => {
   const { t, language } = useTranslation();
   const availableStates = ScholarshipRepository.getAvailableStates();
+  const [schemes, setSchemes] = useState<Scholarship[]>([]);
+
+  useEffect(() => {
+    ScholarshipRepository.getScholarshipsList({ pageSize: 50 })
+      .then((data) => {
+        if (data && data.length > 0) {
+          setSchemes(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('EligibilityPage: error fetching live scholarships:', err);
+      });
+  }, []);
 
   const [formData, setFormData] = useState<StudentEligibilityProfile>({
     state: 'Andhra Pradesh',
@@ -43,7 +56,7 @@ export const EligibilityPage: React.FC = () => {
 
   const handleEvaluate = (e: React.FormEvent) => {
     e.preventDefault();
-    const evaluation = EligibilityEngine.evaluateAllScholarships(formData, language);
+    const evaluation = EligibilityEngine.evaluateAllScholarships(formData, language, schemes);
     setResults(evaluation);
     setEvaluated(true);
   };
