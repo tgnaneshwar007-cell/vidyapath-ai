@@ -97,12 +97,14 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
 
   return (
     <div 
-      className={`group flex flex-col justify-between rounded-xl p-5 md:p-6 ${
-        glassmorphic ? 'glass-card' : 'rounded-lg border border-brand-border bg-brand-surface shadow-card'
+      className={`group flex flex-col justify-between rounded-2xl p-5 md:p-6 ${
+        glassmorphic 
+          ? 'glass-box glass-box-hover' 
+          : 'rounded-xl border border-brand-border bg-brand-surface shadow-card'
       } tap-60fps`}
     >
       <div>
-        {/* Top Badges & Save Action */}
+        {/* Top Badges & Bookmark */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {getSchemeBadge()}
@@ -126,11 +128,11 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
           </button>
         </div>
 
-        {/* Title in Editorial Serif */}
-        <div className="mt-3.5">
+        {/* Title in Modern Geometric Grotesque (Geist Sans / Inter) */}
+        <div className="mt-4">
           <Link
             to={`/scholarships/${scholarship.slug}`}
-            className="block text-lg md:text-xl font-serif font-bold text-brand-black hover:text-brand-orange transition-colors line-clamp-2 leading-snug tracking-tight"
+            className="block text-base md:text-lg font-bold font-display text-brand-black hover:text-brand-orange transition-colors line-clamp-2 leading-snug tracking-tight"
           >
             {title}
           </Link>
@@ -140,14 +142,14 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
           </div>
         </div>
 
-        {/* Award Benefits Summary */}
-        <div className="mt-3.5 rounded-lg bg-white/60 backdrop-blur-sm px-3.5 py-2.5 text-xs text-brand-black/90 leading-relaxed border border-brand-border/60">
+        {/* Award Benefits Box */}
+        <div className="mt-3.5 rounded-xl bg-white/70 backdrop-blur-sm px-3.5 py-2.5 text-xs text-brand-black/90 leading-relaxed border border-brand-border/60 shadow-subtle">
           <span className="font-semibold text-brand-black">Benefits: </span>
           <span className="line-clamp-2">{benefits}</span>
         </div>
 
-        {/* Key Metadata Pills */}
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-brand-storm-dark">
+        {/* Key Metadata Grid */}
+        <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-brand-storm-dark font-sans">
           <div className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-brand-storm" />
             <span className="truncate">
@@ -173,7 +175,7 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
             <Calendar className="h-3.5 w-3.5 text-brand-storm" />
             {formatDeadline()}
           </div>
-          <span className="text-[11px] text-brand-storm mt-0.5">
+          <span className="text-[11px] text-brand-storm mt-0.5 font-mono">
             {t.common.lastVerified}: {new Date(scholarship.last_verified_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
           </span>
         </div>

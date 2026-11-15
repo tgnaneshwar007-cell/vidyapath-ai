@@ -31,19 +31,27 @@ export const Header: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-brand-border/60 bg-brand-surface/90 backdrop-blur-md transition-all">
+    <header className="sticky top-0 z-40 w-full border-b border-brand-border/60 bg-white/80 backdrop-blur-xl transition-all shadow-subtle">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Official Brand Logo */}
+        {/* Brand Emblem & Typography */}
         <Link 
           to="/" 
-          className="flex items-center gap-2 transition-transform duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 rounded"
+          className="flex items-center gap-2.5 transition-transform duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 rounded-lg"
           aria-label="VidyaPath AI Home"
         >
-          <img 
-            src="/logo.png" 
-            alt="VidyaPath AI" 
-            className="h-8 sm:h-9 w-auto object-contain"
-          />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-brand-black shadow-subtle border border-brand-border/60 shrink-0">
+            <img 
+              src="/logo.png" 
+              alt="VidyaPath AI Emblem" 
+              className="h-full w-full object-cover scale-110"
+            />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-lg font-bold tracking-tight text-brand-black font-display flex items-center gap-1.5 leading-none">
+              VidyaPath <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-black text-brand-orange font-mono font-semibold">AI</span>
+            </span>
+            <span className="text-[9.5px] text-brand-mutedText font-mono tracking-wider uppercase mt-1">Scholarship Intelligence</span>
+          </div>
         </Link>
 
         {/* Desktop Navigation Links */}
@@ -66,9 +74,9 @@ export const Header: React.FC = () => {
           ))}
         </nav>
 
-        {/* Right Action Bar: Language + CTA */}
+        {/* Right Action Bar */}
         <div className="hidden md:flex items-center space-x-3">
-          {/* Language Selector Dropdown */}
+          {/* Language Selector */}
           <div className="relative">
             <button
               onClick={() => setLangDropdownOpen(!langDropdownOpen)}
@@ -108,7 +116,7 @@ export const Header: React.FC = () => {
             )}
           </div>
 
-          {/* Primary CTA with 60fps tap action */}
+          {/* Primary CTA */}
           <Button asChild variant="primary" size="sm" className="tap-60fps shadow-subtle">
             <Link to="/scholarships" className="flex items-center gap-1">
               <span>{t.common.checkEligibility}</span>
@@ -117,7 +125,7 @@ export const Header: React.FC = () => {
           </Button>
         </div>
 
-        {/* Mobile menu hamburger button */}
+        {/* Mobile menu toggle */}
         <div className="flex md:hidden items-center space-x-2">
           <button
             onClick={() => {

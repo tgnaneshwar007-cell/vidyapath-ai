@@ -7,7 +7,7 @@
     --storm-grey: #747D87;
     --matte-black: #17191C;
     --safety-orange: #F47B20;
-    --warm-white: #F5F4F0;
+    --warm-white: #F8F9FA;
     --surface: #FFFFFF;
     --muted-text: #69717A;
     --border: #DCE0E3;
@@ -16,70 +16,83 @@
   }
 
   body {
-    background-color: var(--warm-white);
+    background-color: #F8F9FA;
     color: var(--matte-black);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Geist Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
   }
 
   h1, h2, h3 {
-    font-family: 'Times New Roman', Times, Georgia, serif;
+    font-family: 'Geist Sans', 'Inter', -apple-system, sans-serif;
     color: var(--matte-black);
-    letter-spacing: -0.015em;
+    letter-spacing: -0.025em;
+    font-weight: 700;
   }
 
   h4, h5, h6 {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Geist Sans', 'Inter', sans-serif;
     color: var(--matte-black);
+    letter-spacing: -0.015em;
   }
 }
 
-/* 60 FPS Hardware Acceleration & Spring Transitions */
+/* Ambient Radial Mesh Background - Creates true depth for glass refraction */
+.ambient-mesh-bg {
+  background-color: #F8F9FA;
+  background-image: 
+    radial-gradient(circle at 10% 8%, rgba(116, 125, 135, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 88% 18%, rgba(244, 123, 32, 0.11) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(116, 125, 135, 0.07) 0%, transparent 55%),
+    radial-gradient(circle at 18% 82%, rgba(244, 123, 32, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 82% 90%, rgba(116, 125, 135, 0.10) 0%, transparent 45%);
+  background-attachment: fixed;
+}
+
+/* High-Precision Glassmorphism with Razor-Sharp Outlines */
+.glass-box {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 0 0 1px rgba(220, 224, 227, 0.75),
+    0 8px 30px -4px rgba(23, 25, 28, 0.05),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateZ(0);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, box-shadow, border-color;
+}
+
+.glass-box-hover:hover {
+  background: rgba(255, 255, 255, 0.90);
+  border-color: rgba(244, 123, 32, 0.45);
+  box-shadow: 
+    0 0 0 1px rgba(244, 123, 32, 0.5),
+    0 14px 36px -4px rgba(23, 25, 28, 0.09),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 1);
+  transform: translateY(-2px) translateZ(0);
+}
+
+/* 60 FPS Hardware Acceleration & Fluid Tap Physics */
 .tap-60fps {
   transform: translateZ(0);
   backface-visibility: hidden;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, background-color 0.18s ease;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, background-color 0.16s ease;
   will-change: transform;
 }
 .tap-60fps:active {
   transform: scale(0.982) translateZ(0);
 }
 
-/* Frosted Light Glassmorphism */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.76);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 8px 32px 0 rgba(23, 25, 28, 0.05);
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(220, 224, 227, 0.75);
-  box-shadow: 0 4px 20px -2px rgba(23, 25, 28, 0.04);
-  transform: translateZ(0);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, box-shadow;
-}
-
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.90);
-  border-color: rgba(116, 125, 135, 0.35);
-  transform: translateY(-2px) translateZ(0);
-  box-shadow: 0 12px 28px -4px rgba(23, 25, 28, 0.08);
-}
-
-/* Accessible focus outline */
+/* Accessible Focus Ring */
 *:focus-visible {
   outline: 2px solid var(--safety-orange);
   outline-offset: 2px;
 }
 
-/* Smooth Scrollbar */
+/* Smooth Minimal Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

@@ -1,6 +1,13 @@
-import { Scholarship, SchemeType, EducationLevel, TrackedApplication, ApplicationStage, UserProfile } from '../types';
+import { 
+  Scholarship, 
+  SchemeType, 
+  EducationLevel, 
+  TrackedApplication, 
+  ApplicationStage, 
+  UserProfile 
+} from '../types';
 import { VERIFIED_SCHOLARSHIPS } from '../data/verifiedScholarships';
-// import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export interface ScholarshipFilters {
   search?: string;
@@ -29,13 +36,35 @@ const LOCAL_STORAGE_PROFILE_KEY = 'vidyapath_user_profile';
 
 export class ScholarshipRepository {
   /**
-   * Query scholarships with flexible search, filtering, and sorting
+   * Query scholarships with live Supabase database support & verified fallback
    */
   static async getScholarships(filters: ScholarshipFilters = {}): Promise<PaginatedScholarships> {
-    // If Supabase is configured, we can query Supabase, otherwise use verified bundled dataset
-    let dataset = [...VERIFIED_SCHOLARSHIPS];
+    let dataset: Scholarship[] = [];
 
-    // Search filter across title, provider, and description in all languages
+    // Attempt live Supabase query if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let query = supabase.from('scholarships').select('*', { count: 'exact' });
+
+        if (filters.schemeType && filters.schemeType !== 'all') {
+          query = query.eq('scheme_type', filters.schemeType);
+        }
+
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          dataset = data as Scholarship[];
+        } else {
+          dataset = [...VERIFIED_SCHOLARSHIPS];
+        }
+      } catch (err) {
+        console.warn('Supabase fetch failed, utilizing verified dataset:', err);
+        dataset = [...VERIFIED_SCHOLARSHIPS];
+      }
+    } else {
+      dataset = [...VERIFIED_SCHOLARSHIPS];
+    }
+
+    // Client-side multi-parameter filter
     if (filters.search && filters.search.trim()) {
       const q = filters.search.toLowerCase().trim();
       dataset = dataset.filter((s) => {
@@ -57,26 +86,22 @@ export class ScholarshipRepository {
       });
     }
 
-    // Scheme Type filter
     if (filters.schemeType && filters.schemeType !== 'all') {
       dataset = dataset.filter((s) => s.scheme_type === filters.schemeType);
     }
 
-    // Education Level filter
     if (filters.educationLevel && filters.educationLevel !== 'all') {
       dataset = dataset.filter((s) => 
         s.education_levels.includes(filters.educationLevel as EducationLevel)
       );
     }
 
-    // State filter
     if (filters.state && filters.state !== 'all' && filters.state !== 'All India') {
       dataset = dataset.filter((s) => 
         s.eligible_states.includes('All India') || s.eligible_states.includes(filters.state!)
       );
     }
 
-    // Category filter
     if (filters.category && filters.category !== 'all') {
       dataset = dataset.filter((s) => 
         s.applicable_categories.includes('General') || 
@@ -84,7 +109,6 @@ export class ScholarshipRepository {
       );
     }
 
-    // Gender filter
     if (filters.gender && filters.gender !== 'all') {
       dataset = dataset.filter((s) => 
         s.applicable_genders.includes('all') ||
@@ -92,14 +116,12 @@ export class ScholarshipRepository {
       );
     }
 
-    // Income ceiling filter
     if (filters.maxIncome && filters.maxIncome > 0) {
       dataset = dataset.filter((s) => 
         s.income_limit === null || s.income_limit >= filters.maxIncome!
       );
     }
 
-    // Status filter (open, closing soon, closed)
     if (filters.status && filters.status !== 'all') {
       const now = new Date();
       dataset = dataset.filter((s) => {
@@ -107,15 +129,9 @@ export class ScholarshipRepository {
         const closing = new Date(s.closing_date);
         const diffDays = Math.ceil((closing.getTime() - now.getTime()) / (1000 * 3600 * 24));
         
-        if (filters.status === 'closed') {
-          return diffDays < 0;
-        }
-        if (filters.status === 'closing_soon') {
-          return diffDays >= 0 && diffDays <= 15;
-        }
-        if (filters.status === 'open') {
-          return diffDays >= 0;
-        }
+        if (filters.status === 'closed') return diffDays < 0;
+        if (filters.status === 'closing_soon') return diffDays >= 0 && diffDays <= 15;
+        if (filters.status === 'open') return diffDays >= 0;
         return true;
       });
     }
@@ -134,7 +150,6 @@ export class ScholarshipRepository {
       if (sortBy === 'title_asc') {
         return a.title.en.localeCompare(b.title.en);
       }
-      // verified_desc (default)
       return new Date(b.last_verified_at).getTime() - new Date(a.last_verified_at).getTime();
     });
 
@@ -153,17 +168,23 @@ export class ScholarshipRepository {
     };
   }
 
-  /**
-   * Get single scholarship by unique slug
-   */
   static async getScholarshipBySlug(slug: string): Promise<Scholarship | null> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('scholarships')
+          .select('*, sources:scholarship_sources(*)')
+          .or(`slug.eq.${slug},id.eq.${slug}`)
+          .single();
+        if (!error && data) return data as Scholarship;
+      } catch (err) {
+        console.warn('Supabase slug fetch fallback:', err);
+      }
+    }
     const item = VERIFIED_SCHOLARSHIPS.find((s) => s.slug === slug || s.id === slug);
     return item || null;
   }
 
-  /**
-   * Get list of unique states
-   */
   static getAvailableStates(): string[] {
     const stateSet = new Set<string>();
     VERIFIED_SCHOLARSHIPS.forEach((s) => {
@@ -171,7 +192,6 @@ export class ScholarshipRepository {
         if (st !== 'All India') stateSet.add(st);
       });
     });
-    // Add prominent Indian states
     const prominentStates = [
       'Andhra Pradesh',
       'Telangana',
@@ -193,9 +213,6 @@ export class ScholarshipRepository {
     return Array.from(stateSet).sort();
   }
 
-  /**
-   * Saved Scholarships (Bookmarks)
-   */
   static getSavedScholarshipIds(): string[] {
     try {
       const data = localStorage.getItem(LOCAL_STORAGE_SAVED_KEY);
@@ -221,6 +238,21 @@ export class ScholarshipRepository {
       isNowSaved = true;
     }
     localStorage.setItem(LOCAL_STORAGE_SAVED_KEY, JSON.stringify(updated));
+
+    // Async sync to Supabase if signed in
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      client.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          if (isNowSaved) {
+            client.from('saved_scholarships').insert({ user_id: user.id, scholarship_id: id }).then();
+          } else {
+            client.from('saved_scholarships').delete().match({ user_id: user.id, scholarship_id: id }).then();
+          }
+        }
+      });
+    }
+
     return isNowSaved;
   }
 
@@ -229,15 +261,11 @@ export class ScholarshipRepository {
     return VERIFIED_SCHOLARSHIPS.filter((s) => ids.includes(s.id));
   }
 
-  /**
-   * Application Progress Tracker Operations
-   */
   static getTrackedApplications(): TrackedApplication[] {
     try {
       const data = localStorage.getItem(LOCAL_STORAGE_APPS_KEY);
       if (!data) return [];
       const parsed = JSON.parse(data);
-      // Re-link full scholarship object
       return parsed.map((app: any) => ({
         ...app,
         scholarship: VERIFIED_SCHOLARSHIPS.find((s) => s.id === app.scholarship_id) || app.scholarship,
@@ -254,7 +282,7 @@ export class ScholarshipRepository {
 
     const newApp: TrackedApplication = {
       id: `app_${Date.now()}`,
-      user_id: 'guest_or_current_user',
+      user_id: 'current_user',
       scholarship_id: scholarship.id,
       scholarship,
       stage: initialStage,
@@ -272,6 +300,22 @@ export class ScholarshipRepository {
 
     apps.unshift(newApp);
     localStorage.setItem(LOCAL_STORAGE_APPS_KEY, JSON.stringify(apps));
+
+    // Live Supabase sync if user is authenticated
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      client.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          client.from('applications').insert({
+            user_id: user.id,
+            scholarship_id: scholarship.id,
+            stage: initialStage,
+            notes: '',
+          }).then();
+        }
+      });
+    }
+
     return newApp;
   }
 
@@ -304,9 +348,6 @@ export class ScholarshipRepository {
     localStorage.setItem(LOCAL_STORAGE_APPS_KEY, JSON.stringify(apps));
   }
 
-  /**
-   * User Profile Operations
-   */
   static getUserProfile(): UserProfile {
     try {
       const data = localStorage.getItem(LOCAL_STORAGE_PROFILE_KEY);
@@ -344,6 +385,29 @@ export class ScholarshipRepository {
       updated_at: new Date().toISOString(),
     };
     localStorage.setItem(LOCAL_STORAGE_PROFILE_KEY, JSON.stringify(updated));
+
+    // Sync to Supabase profiles table if authenticated
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      client.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          client.from('profiles').upsert({
+            id: user.id,
+            full_name: updated.full_name,
+            email: user.email || updated.email,
+            preferred_language: updated.preferred_language,
+            state: updated.state,
+            education_level: updated.education_level,
+            course: updated.course,
+            annual_family_income: updated.annual_family_income,
+            category: updated.category,
+            gender: updated.gender,
+            updated_at: new Date().toISOString(),
+          }).then();
+        }
+      });
+    }
+
     return updated;
   }
 }

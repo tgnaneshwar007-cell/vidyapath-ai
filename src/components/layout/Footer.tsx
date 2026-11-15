@@ -7,20 +7,28 @@ export const Footer: React.FC = () => {
   const { t, language, setLanguage } = useTranslation();
 
   return (
-    <footer className="border-t border-brand-border bg-brand-surface text-brand-black transition-colors">
+    <footer className="border-t border-brand-border/70 bg-white/70 backdrop-blur-md text-brand-black transition-colors">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Column 1: Brand & Promise */}
           <div className="lg:col-span-2">
-            <Link to="/" className="inline-block transition-transform duration-150 active:scale-95">
-              <img 
-                src="/logo.png" 
-                alt="VidyaPath AI" 
-                className="h-9 w-auto object-contain"
-              />
+            <Link to="/" className="inline-flex items-center gap-2.5 transition-transform duration-150 active:scale-95">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-brand-black shadow-subtle border border-brand-border/60 shrink-0">
+                <img 
+                  src="/logo.png" 
+                  alt="VidyaPath AI Emblem" 
+                  className="h-full w-full object-cover scale-110"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold tracking-tight text-brand-black font-display flex items-center gap-1.5 leading-none">
+                  VidyaPath <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-black text-brand-orange font-mono font-semibold">AI</span>
+                </span>
+                <span className="text-[9.5px] text-brand-mutedText font-mono tracking-wider uppercase mt-1">Scholarship Intelligence</span>
+              </div>
             </Link>
 
-            <p className="mt-3 text-sm text-brand-mutedText leading-relaxed max-w-sm">
+            <p className="mt-3.5 text-xs sm:text-sm text-brand-mutedText leading-relaxed max-w-sm">
               {t.common.tagline} Verified Indian scholarship intelligence, deterministic eligibility evaluations, and multilingual application guidance.
             </p>
 
@@ -144,7 +152,7 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Official Statutory Disclaimer Box */}
-        <div className="mt-8 rounded-lg border border-brand-border/80 bg-brand-storm-subtle/50 p-4 text-xs text-brand-mutedText leading-relaxed">
+        <div className="mt-8 rounded-xl border border-brand-border/70 bg-white/60 backdrop-blur-sm p-4 text-xs text-brand-mutedText leading-relaxed shadow-subtle">
           <p className="font-semibold text-brand-black mb-1">
             Important Information & Disclaimer:
           </p>
@@ -163,21 +171,21 @@ export const Footer: React.FC = () => {
             <span className="text-brand-mutedText">Language:</span>
             <button
               onClick={() => setLanguage('en')}
-              className={`tap-60fps px-2 py-0.5 rounded ${language === 'en' ? 'bg-brand-black text-white font-medium' : 'text-brand-mutedText hover:text-brand-black'}`}
+              className={`tap-60fps px-2.5 py-0.5 rounded ${language === 'en' ? 'bg-brand-black text-white font-medium' : 'text-brand-mutedText hover:text-brand-black'}`}
             >
               English
             </button>
             <span className="text-brand-border">|</span>
             <button
               onClick={() => setLanguage('te')}
-              className={`tap-60fps px-2 py-0.5 rounded ${language === 'te' ? 'bg-brand-black text-white font-medium' : 'text-brand-mutedText hover:text-brand-black'}`}
+              className={`tap-60fps px-2.5 py-0.5 rounded ${language === 'te' ? 'bg-brand-black text-white font-medium' : 'text-brand-mutedText hover:text-brand-black'}`}
             >
               తెలుగు
             </button>
             <span className="text-brand-border">|</span>
             <button
               onClick={() => setLanguage('hi')}
-              className={`tap-60fps px-2 py-0.5 rounded ${language === 'hi' ? 'bg-brand-black text-white font-medium' : 'text-brand-mutedText hover:text-brand-black'}`}
+              className={`tap-60fps px-2.5 py-0.5 rounded ${language === 'hi' ? 'bg-brand-black text-white font-medium' : 'text-brand-mutedText hover:text-brand-black'}`}
             >
               हिंदी
             </button>
