@@ -20,9 +20,14 @@ import {
 interface ScholarshipCardProps {
   scholarship: Scholarship;
   onSavedChange?: (isSaved: boolean) => void;
+  glassmorphic?: boolean;
 }
 
-export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, onSavedChange }) => {
+export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ 
+  scholarship, 
+  onSavedChange,
+  glassmorphic = true
+}) => {
   const { language, t } = useTranslation();
   const [isSaved, setIsSaved] = useState(() => ScholarshipRepository.isScholarshipSaved(scholarship.id));
 
@@ -49,11 +54,10 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
     }
   };
 
-  // Format deadline in Indian Standard Time (IST)
   const formatDeadline = () => {
     if (!scholarship.closing_date) {
       return (
-        <span className="text-brand-mutedText text-xs">
+        <span className="text-brand-mutedText text-xs font-sans">
           {t.common.noDeadlineProvided}
         </span>
       );
@@ -71,7 +75,7 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
     if (diffDays < 0) {
       return (
         <span className="inline-flex items-center gap-1 text-brand-danger font-medium text-xs">
-          <span>Closed on {dateStr}</span>
+          <span>Closed ({dateStr})</span>
         </span>
       );
     }
@@ -92,7 +96,11 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
   };
 
   return (
-    <div className="group flex flex-col justify-between rounded-lg border border-brand-border bg-brand-surface p-5 md:p-6 shadow-card hover:border-brand-storm transition-all duration-200">
+    <div 
+      className={`group flex flex-col justify-between rounded-xl p-5 md:p-6 ${
+        glassmorphic ? 'glass-card' : 'rounded-lg border border-brand-border bg-brand-surface shadow-card'
+      } tap-60fps`}
+    >
       <div>
         {/* Top Badges & Save Action */}
         <div className="flex items-start justify-between gap-3">
@@ -106,7 +114,7 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
 
           <button
             onClick={handleToggleSave}
-            className="rounded p-1.5 text-brand-mutedText hover:bg-brand-storm-subtle hover:text-brand-orange transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange"
+            className="tap-60fps rounded-md p-1.5 text-brand-mutedText hover:bg-brand-storm-subtle hover:text-brand-orange transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange"
             title={isSaved ? t.common.saved : t.common.saveScholarship}
             aria-label={isSaved ? "Remove from saved scholarships" : "Save scholarship"}
           >
@@ -118,11 +126,11 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
           </button>
         </div>
 
-        {/* Title & Provider */}
-        <div className="mt-3">
+        {/* Title in Editorial Serif */}
+        <div className="mt-3.5">
           <Link
             to={`/scholarships/${scholarship.slug}`}
-            className="block text-base md:text-lg font-semibold text-brand-black hover:text-brand-orange transition-colors line-clamp-2 leading-snug"
+            className="block text-lg md:text-xl font-serif font-bold text-brand-black hover:text-brand-orange transition-colors line-clamp-2 leading-snug tracking-tight"
           >
             {title}
           </Link>
@@ -133,7 +141,7 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
         </div>
 
         {/* Award Benefits Summary */}
-        <div className="mt-3.5 rounded-md bg-brand-storm-subtle/50 px-3 py-2 text-xs text-brand-black/90 leading-relaxed border border-brand-border/40">
+        <div className="mt-3.5 rounded-lg bg-white/60 backdrop-blur-sm px-3.5 py-2.5 text-xs text-brand-black/90 leading-relaxed border border-brand-border/60">
           <span className="font-semibold text-brand-black">Benefits: </span>
           <span className="line-clamp-2">{benefits}</span>
         </div>
@@ -158,8 +166,8 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
         </div>
       </div>
 
-      {/* Card Footer: Deadline, Verification & Actions */}
-      <div className="mt-5 border-t border-brand-border/60 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Card Footer */}
+      <div className="mt-5 border-t border-brand-border/50 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-col text-xs text-brand-mutedText">
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-brand-storm" />
@@ -171,7 +179,7 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
         </div>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="tap-60fps">
             <Link to={`/scholarships/${scholarship.slug}`}>
               <span>{t.common.viewDetails}</span>
               <ArrowRight className="h-3.5 w-3.5 ml-1" />
@@ -181,7 +189,7 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({ scholarship, o
             href={scholarship.official_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand-border text-brand-mutedText hover:text-brand-black hover:bg-brand-storm-subtle transition-colors"
+            className="tap-60fps inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand-border text-brand-mutedText hover:text-brand-black hover:bg-brand-storm-subtle transition-colors"
             title={t.common.officialPortal}
             aria-label="Open official scholarship portal in new tab"
           >
