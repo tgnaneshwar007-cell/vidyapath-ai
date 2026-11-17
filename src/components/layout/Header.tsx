@@ -4,7 +4,7 @@ import { useTranslation } from '@/locales/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Language } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Globe, Menu, X, ArrowUpRight, User, LogOut, ShieldAlert } from 'lucide-react';
+import { Globe, Menu, X, ArrowUpRight, User, LogOut, ShieldAlert, Search } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { language, setLanguage, t } = useTranslation();
@@ -91,7 +91,20 @@ export const Header: React.FC = () => {
         </nav>
 
         {/* Right Action Bar */}
-        <div className="hidden md:flex items-center space-x-3">
+        <div className="hidden md:flex items-center space-x-2.5">
+          {/* Global Command Menu Trigger (Cmd+K) */}
+          <button
+            onClick={() => {
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+            }}
+            className="tap-60fps flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface px-2.5 py-1.5 text-xs text-brand-mutedText hover:text-brand-black hover:bg-brand-storm-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange"
+            aria-label="Open Command Menu (Cmd+K)"
+          >
+            <Search className="h-3.5 w-3.5 text-brand-storm" />
+            <span className="hidden lg:inline text-xs font-medium">Search</span>
+            <kbd className="hidden lg:inline-flex items-center text-[10px] font-mono px-1 py-0.5 rounded bg-brand-storm-subtle text-brand-storm-dark">⌘K</kbd>
+          </button>
+
           {/* Language Selector */}
           <div className="relative">
             <button

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Scholarship } from '@/types';
 import { useTranslation } from '@/locales/LanguageContext';
+import { useToast } from '@/components/ui/ToastProvider';
 import { ScholarshipRepository } from '@/services/scholarshipRepository';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
   glassmorphic = true
 }) => {
   const { language, t } = useTranslation();
+  const { success } = useToast();
   const [isSaved, setIsSaved] = useState(() => ScholarshipRepository.isScholarshipSaved(scholarship.id));
 
   const handleToggleSave = (e: React.MouseEvent) => {
@@ -37,6 +39,17 @@ export const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
     const updated = ScholarshipRepository.toggleSaveScholarship(scholarship.id);
     setIsSaved(updated);
     if (onSavedChange) onSavedChange(updated);
+
+    if (updated) {
+      success('Scholarship Bookmarked', `${scholarship.title[language] || scholarship.title.en} saved.`, {
+        label: 'UNDO',
+        onClick: () => {
+          ScholarshipRepository.toggleSaveScholarship(scholarship.id);
+          setIsSaved(false);
+          if (onSavedChange) onSavedChange(false);
+        },
+      });
+    }
   };
 
   const title = scholarship.title[language] || scholarship.title.en;

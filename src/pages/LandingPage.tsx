@@ -4,6 +4,7 @@ import { useTranslation } from '@/locales/LanguageContext';
 import { VERIFIED_SCHOLARSHIPS } from '@/data/verifiedScholarships';
 import { ScholarshipRepository } from '@/services/scholarshipRepository';
 import { ScholarshipCard } from '@/components/scholarships/ScholarshipCard';
+import { DossierShelfHero } from '@/components/scholarships/DossierShelfHero';
 import { Button } from '@/components/ui/button';
 import { Scholarship } from '@/types';
 import { 
@@ -18,11 +19,13 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [quickQuery, setQuickQuery] = useState('');
   const [previewScholarships, setPreviewScholarships] = useState<Scholarship[]>(VERIFIED_SCHOLARSHIPS.slice(0, 3));
+  const [allScholarships, setAllScholarships] = useState<Scholarship[]>(VERIFIED_SCHOLARSHIPS);
 
   useEffect(() => {
-    ScholarshipRepository.getScholarshipsList({ pageSize: 3 })
+    ScholarshipRepository.getScholarshipsList({ pageSize: 30 })
       .then((data) => {
         if (data && data.length > 0) {
+          setAllScholarships(data);
           setPreviewScholarships(data.slice(0, 3));
         }
       })
@@ -122,6 +125,30 @@ export const LandingPage: React.FC = () => {
             </button>
           </div>
         </div>
+      </section>
+
+      {/* 2. 3D PHYSICAL DOSSIER SHELF HERO */}
+      <section className="w-full relative py-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-4 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-brand-orange animate-pulse" />
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-brand-black font-display flex items-center gap-2">
+                <span>Interactive 3D Scholarship Dossier Shelf</span>
+              </h2>
+            </div>
+            <p className="text-xs text-brand-mutedText mt-0.5">
+              Pull, rotate, and inspect physical scholarship binders. Click or drag to turn active dossiers towards you.
+            </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-brand-mutedText">
+            <kbd className="px-1.5 py-0.5 rounded bg-brand-storm-subtle text-brand-black">←</kbd>
+            <kbd className="px-1.5 py-0.5 rounded bg-brand-storm-subtle text-brand-black">→</kbd>
+            <span>or Drag</span>
+          </div>
+        </div>
+
+        <DossierShelfHero scholarships={allScholarships} />
       </section>
 
       {/* 3. HOW IT WORKS - 3 Clear Steps with Visible Outlines */}

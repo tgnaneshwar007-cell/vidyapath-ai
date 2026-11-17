@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Scholarship, SchemeType, EducationLevel } from '@/types';
 import { ScholarshipRepository, ScholarshipFilters } from '@/services/scholarshipRepository';
 import { ScholarshipCard } from '@/components/scholarships/ScholarshipCard';
+import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { useTranslation } from '@/locales/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -352,8 +353,10 @@ export const ScholarshipsPage: React.FC = () => {
 
           {/* Scholarship Cards Grid */}
           {loading ? (
-            <div className="py-20 text-center text-sm text-brand-mutedText">
-              {t.common.loading}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <SkeletonCard key={`skel-${idx}`} />
+              ))}
             </div>
           ) : scholarships.length === 0 ? (
             <div className="rounded-xl border border-brand-border bg-brand-surface p-12 text-center shadow-card">
